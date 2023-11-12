@@ -1,70 +1,99 @@
+#include "DoublyLinkedList.h"
+#include <fstream>
+#include <sstream>
 #include <iostream>
 #include <string>
-#include <fstream>
-#include <list>
+#include <cctype>
 #include <algorithm>
-#include <iterator>
-#include "sorts.h"
+#include <limits>
 
-#define spotify_file "spotify_2023.csv"
-
-// Define a custom data structure to represent song stream information.
-struct SongStream
-{
-    std::string song_name;
-    long long no_streams;
-    std::string artist_name;
-};
-
-bool compareSongStreams(const SongStream& a, const SongStream& b) {
-    return a.no_streams < b.no_streams;
+// Ignore spaces
+std::string trim(const std::string &s) {
+    size_t start = s.find_first_not_of(" \n\r\t\f\v");
+    size_t end = s.find_last_not_of(" \n\r\t\f\v");
+    return (start == std::string::npos || end == std::string::npos) ? "" : s.substr(start, end - start + 1);
 }
 
-int main()
-{
-    std::ifstream file(spotify_file);
-    std::string line;
-    std::string artist;
-
-    // Create a list to store song_stream data.
-    std::list<SongStream> tracks;
-
-    std::getline(file, line);
-
-    std::size_t c1 = 0;
-    std::size_t c2 = 0;
-
-    std::cout << "Please enter an artist name: ";
-    std::getline(std::cin, artist);
-    std::transform(artist.begin(), artist.end(), artist.begin(), ::tolower);
-
-    while (getline(file, line))
-    {
-        c1 = line.find(',');
-        c2 = line.rfind(',');
-
-        SongStream newTrack;
-        newTrack.song_name = line.substr(c1 + 1, c2 - c1 - 1);
-        newTrack.no_streams = std::stoll(line.substr(c2 + 1));
-        newTrack.artist_name = line.substr(0, c1);
-
-        tracks.push_back(newTrack);
+// Look up and show artist's songs
+void searchArtist(DoublyLinkedList &list, const std::string &inputArtist) {
+    std::ifstream file("project.csv");
+    if (!file.is_open()) {
+        std::cerr << "Error at opening the file" << std::endl;
+        return;
     }
 
-    // Sort the tracks list using a custom comparison function.
-    tracks.sort(compareSongStreams);
+    std::string line;
+    std::getline(file, line); // Do not count first line
 
-    for (const SongStream& track : tracks)
-    {
-        std::string trackArtist = track.artist_name;
-        std::transform(trackArtist.begin(), trackArtist.end(), trackArtist.begin(), ::tolower);
+    while (std::getline(file, line)) {
+        std::istringstream s(line);
+        std::string artist_name, track_name, field;
+        unsigned long long streams;
 
-        if (trackArtist == artist)
-        {
-            std::cout << track.no_streams << "\t || " << track.song_name << " || " << track.artist_name << std::endl;
+        std::getline(s, artist_name, ',');
+        std::getline(s, track_name, ',');
+        std::getline(s, field, ',');
+        streams = std::stoull(field);
+
+        artist_name = trim(artist_name);
+
+        if (artist_name == inputArtist) {
+            Node* newNode = new Node(artist_name, track_name, streams);
+            list.append(newNode);
         }
     }
 
-    // Close the file.
     file.close();
+
+    // Sort list
+    list.sort();
+    list.printList();
+}
+
+// Función para añadir datos al archivo CSV.
+void addDataToFile() {
+    std::string artist_name, track_name, field;
+    unsigned long long streams;
+
+    std::cout << "Enter the artist name: ";
+    std::getline(std::cin, artist_name);
+    std::cout << "Enter song's name: ";
+    std::getline(std::cin, track_name);
+    std::cout << "Enter the number of streams: ";
+    std::cin >> streams;
+
+    std::ofstream file("project.csv", std::ios::app); // Opens the file
+    if (file.is_open()) {
+        file << artist_name << "," << track_name << "," << streams << "\n";
+        file.close();
+    } else {
+        std::cerr << "Error at opening the file." << std::endl;
+    }
+}
+
+int main() {
+    DoublyLinkedList list;
+    int option;
+
+    std::cout << "Welcome to Spotify :), please enter an option: : \n";
+    std::cout << "1. Search an artist\n";
+    std::cout << "2. Add data\n";
+    std::cin >> option;
+    std::cout <<""<<std::endl;
+
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); 
+
+    if (option == 1) {
+        std::string inputArtist;
+        std::cout << "Enter the artist name: : ";
+        std::getline(std::cin, inputArtist);
+        inputArtist = trim(inputArtist);
+        searchArtist(list, inputArtist);
+    } else if (option == 2) {
+        addDataToFile();
+    } else {
+        std::cout << "No valid option." << std::endl;
+    }
+
+    return 0;
 }
